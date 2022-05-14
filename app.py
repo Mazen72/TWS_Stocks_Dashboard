@@ -85,10 +85,30 @@ tabs=dcc.Tabs(id="tabs", value='Main Page',vertical=True, children=[
     dcc.Tab(label='Scenario Analysis', value='Scenario Analysis', style=tab_style, selected_style=tab_selected_style)
 ], style=tabs_styles)
 
+image_header1=html.Div('OptionAnalytica',id='image_header1',className='main-header',
+                     style=dict(color='#0b1a50',
+                     fontWeight='bold',fontSize='2.5vh',marginTop='',marginLeft='',width='100%',paddingTop='',paddingBottom='',
+                     display= 'flex', alignItems= 'center', justifyContent= 'center'))
+
+image_header2=html.Div("The first dashboard for options portfolio stress testing",id='image_header2',className='main-header',
+                     style=dict(color='#0b1a50',
+                     fontWeight='bold',fontSize='2vh',marginTop='',marginLeft='',width='100%',paddingTop='',paddingBottom='',
+                     display= 'flex', alignItems= 'center', justifyContent= 'center'))
+
+image_header3=html.Div("Version: Beta 1.0.0",id='image_header3',className='main-header',
+                     style=dict(color='#0b1a50',
+                     fontWeight='bold',fontSize='1.8vh',marginTop='',marginLeft='',width='100%',paddingTop='',paddingBottom='',
+                     display= 'flex', alignItems= 'left', justifyContent= 'left'))
+
+image_header4=html.Div("Devs: Gianluca Baglini, Davide Alcala",id='image_header4',className='main-header',
+                     style=dict(color='#0b1a50',
+                     fontWeight='bold',fontSize='1.8vh',fontColor='black',marginLeft='',width='100%',paddingTop='',paddingBottom='',
+                     display= 'flex', alignItems= 'left', justifyContent= 'left'))
+
 encoded2 = base64.b64encode(open(r"images/main_page.jpg", 'rb').read())
 main_img=html.Img(src='data:image/jpg;base64,{}'.format(encoded2.decode()), id='main_img',className='myimg',
-                  style=dict(paddingLeft='',border=''.format(['Main Header Background'][0]),width='100%',height='85vh',
-                             minHeight='85vh') )
+                  style=dict(paddingLeft='',border=''.format(['Main Header Background'][0]),width='100%',height='65vh',
+                             minHeight='65vh') )
 
 main_page_layout=[ dbc.Col([dbc.Card(dbc.CardBody([
                                                          tabs
@@ -101,7 +121,7 @@ main_page_layout=[ dbc.Col([dbc.Card(dbc.CardBody([
                                   md=dict(size=4, offset=0), sm=dict(size=12, offset=0), xs=dict(size=12, offset=0),
                                   style=dict(paddingLeft='', paddingRight='', border='')),
 
-        dbc.Col([main_img
+        dbc.Col([image_header1,html.Br(),image_header2,html.Br(), main_img, html.Br(), html.Br(),image_header3 ,html.Br(),image_header4
                                    ], xl=dict(size=8, offset=0), lg=dict(size=8, offset=0),
                                   md=dict(size=4, offset=0), sm=dict(size=12, offset=0), xs=dict(size=12, offset=0),
                                   style=dict(paddingLeft='', paddingRight='', border=''))
