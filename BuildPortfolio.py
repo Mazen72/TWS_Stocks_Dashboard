@@ -10,15 +10,17 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 from datetime import date, datetime, timedelta
 import yfinance as yf
-from app import components_colors
 
 text_font_size = '1.5vh'
+components_colors={ 'Main Header Background': ['#0b1a50', '#0b1a50'], 'Main Background': ['#e7f0f9', '#e7f0f9'],
+                    'Main Header Text': ['white', 'white']}
 
 df_tickers = pd.read_excel(r"IB_TickerMapping.xlsx")
 ticker_list = list(df_tickers["TICKER"])
 exchange_list = set(df_tickers["EXCHANGE"])
-df_temp_table = pd.read_csv("temp_files/temp.csv")
-
+df_temp_table = pd.read_csv("temp_files/TSLA_PUT.csv")
+column_means = df_temp_table.mean()
+df_temp_table = df_temp_table.fillna(column_means)
 try:
     df_temp_table=df_temp_table.drop('Unnamed: 0')
 except:
@@ -38,9 +40,9 @@ def get_layout(tabs):
 
 
 
-    menu1 = dcc.Dropdown(className="custom-dropdown",
+    menu1 = dcc.Dropdown(
                          options=[{'label': name, 'value': name} for name in exchange_list],
-                         value='',
+                         value='NASDAQ',
                          id='select-stock-exchange',
                             style=dict(color='white', fontWeight='bold', textAlign='center',
                                        width='8vw', backgroundColor='#0b1a50', border='1px solid #0b1a50')
@@ -56,7 +58,8 @@ def get_layout(tabs):
                                        marginLeft='', marginBottom='', display='inline-block'))
 
     menu2 = dcc.Dropdown(
-        options=[{'label': name, 'value': name} for name in ticker_list],
+        options=[{'label': 'TSLA', 'value': 'TSLA'},{'label': 'AAPL', 'value': 'AAPL'},{'label': 'GS', 'value': 'GS'}
+                         ],
         value=None,
         id='select-ticker'
         , style=dict(color='white', fontWeight='bold', textAlign='center',
@@ -77,8 +80,10 @@ def get_layout(tabs):
     menues_row1=html.Div([menu1_div, menu2_div],style={'width': '100%', 'display': 'flex', 'align-items': 'center',
                                                            'justify-content': 'center'})
 
-    menu3 = dcc.Dropdown(className="custom-dropdown",
-                         id='opt-type', options=["P", "C"], value=None,
+    menu3 = dcc.Dropdown(
+                         id='opt-type', options=[{'label': 'P', 'value': 'P'},
+                                                 {'label': 'C', 'value': 'C'},
+                         ], value='P',
                          style=dict(color='white', fontWeight='bold', textAlign='center',
                                     width='8vw', backgroundColor='#0b1a50', border='1px solid #0b1a50')
                          )

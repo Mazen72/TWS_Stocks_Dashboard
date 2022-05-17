@@ -1,0 +1,3 @@
+﻿,symbol,expiration,n,multiplier,undPrice,trade,right,%Δ index,beta,%Δ stock,posDelta,posGamma,volBeta,posVega
+0,AMD,20220513,3000,100,89.56,Buy,P,0.01,1.805392,0.01805392,2973.493554,-12.410745,1.3,-5.882952
+1,AMD,20220520,6000,100,89.56,Sell,C,0.01,1.805392,0.01805392,214.716714,-36.927762,1.5,-69.73554

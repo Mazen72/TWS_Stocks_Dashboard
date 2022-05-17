@@ -1,3 +1,5 @@
+import time
+
 import dash
 import pandas as pd
 import base64
@@ -9,15 +11,17 @@ from dash import Dash, Input, Output, dash_table, callback_context, State
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 from datetime import date, datetime, timedelta
-import BuildPortfolio
+import BuildPortfolio , Portfolio_Stats
 #from ScenarioAnalysis import SCENARIOANALYSIS
-from utils_IB import IbConnect
+from utils_IB import IbConnect ,OptionPortflio,multi_plotter
 from dash.exceptions import PreventUpdate
+
+
 
 #from ScenarioAnalysis import df_indices
 import yfinance as yf
 
-
+#print(op.get_value_greeks())
 server = Flask(__name__)
 app = dash.Dash(
     __name__,server=server,
@@ -141,18 +145,140 @@ dbc.Row([db_logo_img,db_header_text],
                                             className='tabs-card'), html.Br()
                                    ], xl=dict(size=2, offset=0), lg=dict(size=2, offset=0),
                                   md=dict(size=4, offset=0), sm=dict(size=12, offset=0), xs=dict(size=12, offset=0),
-                                  style=dict(paddingLeft='', paddingRight='', border=''))
+                                  style=dict(paddingLeft='', paddingRight='', border='')),
+
+
 
 
                            ],id='content') ,dcc.Store(id="portfolio_created", data=pd.DataFrame().to_dict(), storage_type="memory")
 
-
+,dcc.Store(id="stats_tab", data='no', storage_type="memory")
                      ,html.Br(),html.Br(),html.Br()]
 
 ,style=dict(backgroundColor=components_colors['Main Background'][0])
 ,className='main'
 )
 
+
+@app.callback([Output('created_portfolio_div','children'),Output('net_values_table_div','children'),
+               Output('mymenus', 'children'), Output('graph1_div', 'children') ,Output('graph2_div', 'children'),
+               Output('df_proc','data')],
+              Input('stats_tab','data') ,State('portfolio_created','data'))
+
+def get_stats_tab_layout(tab3_state,portfolio_created):
+    if tab3_state=='pressed':
+        dff = pd.DataFrame(portfolio_created)
+        return Portfolio_Stats.get_stats_layout(dff)
+    else:
+        raise PreventUpdate
+
+@app.callback([Output('content','children'),Output('stats_tab','data')],
+              Input("tabs", "value"))
+def update_tab_content(selected_tab):
+    if selected_tab=='Main Page':
+        tabs = dcc.Tabs(id="tabs", value=selected_tab, vertical=True, children=[
+            dcc.Tab(label='Main Page', value='Main Page', style=tab_style, selected_style=tab_selected_style),
+            dcc.Tab(label='Build Portfolio', value='Build Portfolio', style=tab_style,
+                    selected_style=tab_selected_style),
+            dcc.Tab(label='Portfolio Stats', value='Portfolio Stats', style=tab_style,
+                    selected_style=tab_selected_style),
+            dcc.Tab(label='Intraday Stress Test', value='Intraday Stress Test', style=tab_style,
+                    selected_style=tab_selected_style),
+            dcc.Tab(label='Scenario Analysis', value='Scenario Analysis', style=tab_style,
+                    selected_style=tab_selected_style)
+        ], style=tabs_styles)
+
+        return (main_page_layout,'')
+
+    elif selected_tab=='Build Portfolio':
+        tabs = dcc.Tabs(id="tabs", value=selected_tab, vertical=True, children=[
+            dcc.Tab(label='Main Page', value='Main Page', style=tab_style, selected_style=tab_selected_style),
+            dcc.Tab(label='Build Portfolio', value='Build Portfolio', style=tab_style,
+                    selected_style=tab_selected_style),
+            dcc.Tab(label='Portfolio Stats', value='Portfolio Stats', style=tab_style,
+                    selected_style=tab_selected_style),
+            dcc.Tab(label='Intraday Stress Test', value='Intraday Stress Test', style=tab_style,
+                    selected_style=tab_selected_style),
+            dcc.Tab(label='Scenario Analysis', value='Scenario Analysis', style=tab_style,
+                    selected_style=tab_selected_style)
+        ], style=tabs_styles)
+        return (BuildPortfolio.get_layout(tabs) ,'')
+
+    elif selected_tab=='Portfolio Stats':
+        tabs = dcc.Tabs(id="tabs", value=selected_tab, vertical=True, children=[
+            dcc.Tab(label='Main Page', value='Main Page', style=tab_style, selected_style=tab_selected_style),
+            dcc.Tab(label='Build Portfolio', value='Build Portfolio', style=tab_style,
+                    selected_style=tab_selected_style),
+            dcc.Tab(label='Portfolio Stats', value='Portfolio Stats', style=tab_style,
+                    selected_style=tab_selected_style),
+            dcc.Tab(label='Intraday Stress Test', value='Intraday Stress Test', style=tab_style,
+                    selected_style=tab_selected_style),
+            dcc.Tab(label='Scenario Analysis', value='Scenario Analysis', style=tab_style,
+                    selected_style=tab_selected_style)
+        ], style=tabs_styles)
+
+        return (Portfolio_Stats.prepare_stats_layout(tabs),'pressed')
+
+    elif selected_tab=='Intraday Stress Test':
+        return ( html.Div('{} Content'.format(selected_tab),style=dict(textAlign='center')) ,'')
+
+    elif selected_tab=='Scenario Analysis':
+        return ( html.Div('{} Content'.format(selected_tab),style=dict(textAlign='center')),'')
+
+
+@app.callback(Output('graph2','figure'),
+              [Input("tickers_dropdown", "value") ,Input('expirations_dropdown','value')],
+              [State('portfolio_created','data'),State('df_proc','data')]
+              )
+def update_line_chart(stock,expiration,portfolio_created,df_proc):
+    '''
+    portfolio_df=pd.DataFrame(portfolio_created)
+    portfolio_df['undPrice']=portfolio_df['Quantity']
+    portfolio_df['maturity']='20 days'
+    portfolio_df['expiration']=20220527
+    portfolio_df=portfolio_df[['Unnamed: 0','strike','expiration','undPrice','Trade','modelDelta','modelGamma','modelIV','modelPrice','modelTheta','modelVega','maturity'
+               ]]
+    start=time.time()
+    op=OptionPortflio(portfolio_df)
+    print(time.time()-start)
+    line_fig=op.get_payoff(selected_ticker,selected_expiration)
+    '''
+
+    df = pd.DataFrame(df_proc)
+    condition = (df["symbol"] == stock) & (df["expiration"] == int(expiration))
+    df_filt = df[condition]
+    op_list = []
+    for row, item in df_filt.iterrows():
+        strike = item["strike"]
+        op_price = 10  # todo change item["modelBid"]
+        right = item["right"].lower()
+        trade = "s" if item["Trade"] == "Sell" else "b"
+        undPrice = item["undPrice"]
+        op = {'op_type': right, 'strike': strike, 'tr_type': trade, 'op_pr': op_price}
+        op_list.append(op)
+
+    spot_range = abs(strike - undPrice + 20)
+    df_pay = multi_plotter(spot=undPrice, spot_range=spot_range, op_list=op_list)
+
+    line_fig = px.line(df_pay, x="strike", y="payoff")
+
+    line_fig.update_layout(
+        title_text='<b>Payoff<b>',title_x=0.5, xaxis_title='<b>Strike<b>',yaxis_title='<b>Payoff<b>',
+        font=dict(size=14, family='Arial', color='#0b1a50'), hoverlabel=dict(
+            font_size=16, font_family="Rockwell", font_color='white', bgcolor='#0b1a50'), plot_bgcolor='#F5F5F5',
+        paper_bgcolor='#F5F5F5',
+        xaxis=dict(
+
+            tickwidth=2, tickcolor='#80ced6',
+            ticks="outside",
+            tickson="labels",
+            rangeslider_visible=False
+        ) ,margin=dict(l=0, r=0, t=40, b=0)
+    )
+
+    line_fig.update_xaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
+    line_fig.update_yaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
+    return line_fig
 
 @app.callback([Output('exchanges-out', 'options'),
               Output('store-options-exch', 'data'),
@@ -188,46 +314,8 @@ def get_exchanges(ticker):
     fig.update_yaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
     return exchange, df_chains.to_dict("records"), fig
 
-@app.callback(Output('content','children'),
-              Input("tabs", "value") )
-def update_tab_content(selected_tab):
-    if selected_tab=='Main Page':
-        tabs = dcc.Tabs(id="tabs", value=selected_tab, vertical=True, children=[
-            dcc.Tab(label='Main Page', value='Main Page', style=tab_style, selected_style=tab_selected_style),
-            dcc.Tab(label='Build Portfolio', value='Build Portfolio', style=tab_style,
-                    selected_style=tab_selected_style),
-            dcc.Tab(label='Portfolio Stats', value='Portfolio Stats', style=tab_style,
-                    selected_style=tab_selected_style),
-            dcc.Tab(label='Intraday Stress Test', value='Intraday Stress Test', style=tab_style,
-                    selected_style=tab_selected_style),
-            dcc.Tab(label='Scenario Analysis', value='Scenario Analysis', style=tab_style,
-                    selected_style=tab_selected_style)
-        ], style=tabs_styles)
 
-        return main_page_layout
 
-    elif selected_tab=='Build Portfolio':
-        tabs = dcc.Tabs(id="tabs", value=selected_tab, vertical=True, children=[
-            dcc.Tab(label='Main Page', value='Main Page', style=tab_style, selected_style=tab_selected_style),
-            dcc.Tab(label='Build Portfolio', value='Build Portfolio', style=tab_style,
-                    selected_style=tab_selected_style),
-            dcc.Tab(label='Portfolio Stats', value='Portfolio Stats', style=tab_style,
-                    selected_style=tab_selected_style),
-            dcc.Tab(label='Intraday Stress Test', value='Intraday Stress Test', style=tab_style,
-                    selected_style=tab_selected_style),
-            dcc.Tab(label='Scenario Analysis', value='Scenario Analysis', style=tab_style,
-                    selected_style=tab_selected_style)
-        ], style=tabs_styles)
-        return BuildPortfolio.get_layout(tabs)
-
-    elif selected_tab=='Portfolio Stats':
-        return html.Div('{} Content'.format(selected_tab),style=dict(textAlign='center'))
-
-    elif selected_tab=='Intraday Stress Test':
-        return html.Div('{} Content'.format(selected_tab),style=dict(textAlign='center'))
-
-    elif selected_tab=='Scenario Analysis':
-        return html.Div('{} Content'.format(selected_tab),style=dict(textAlign='center'))
 
 '''
 @app.callback(Output('store-option-chain', 'data'),
@@ -315,6 +403,8 @@ def create_portfolio(clicks,ticker_changed,portfolio_data):
         return ('',dash.no_update)
 
     if clicks > 0:
+        df=pd.DataFrame(portfolio_data)
+        df.to_csv('por.csv',index=False)
         return ( html.Div([
                 'Portfolio Created Successfully',
             ],style=dict(fontSize='1.7vh',fontWeight='bold',color='green',textAlign='center')) , portfolio_data)
@@ -334,20 +424,21 @@ def get_option_chain(n_clicks ,dict_exchange , right, exchange,ticker ):
             ],style=dict(fontSize='1.6vh',fontWeight='bold',color='red',textAlign='center')))
     else:
         my_df=pd.DataFrame()
-        try:
-            currency = BuildPortfolio.df_tickers.loc[BuildPortfolio.df_tickers["TICKER"] == ticker, "CURRENCY"].values[0]
-            pexchange = BuildPortfolio.df_tickers.loc[BuildPortfolio.df_tickers["TICKER"] == ticker, "EXCHANGE"].values[0]
-            ibc = IbConnect()
-            df_exchange = pd.DataFrame.from_dict(dict_exchange)
-            tickers = ibc.read_option_data(df_exchange, ticker, right, exchange, currency, pexchange)
-        # expirations = sorted(exp for exp in chain.expirations)
-            my_df=tickers
+        if ticker == "AAPL" and right == "P":
+            my_df=pd.read_csv("temp_files/AAPL_PUT.csv")
+            column_means = my_df.mean()
+            my_df = my_df.fillna(column_means)
 
-            if my_df=='Error. Check your entry!':
-                my_df = BuildPortfolio.df_temp_table
-
-        except:
-            my_df=BuildPortfolio.df_temp_table
+        elif ticker == "GS" and right == "C":
+            my_df=pd.read_csv("temp_files/GS_CALL.csv")
+            column_means = my_df.mean()
+            my_df = my_df.fillna(column_means)
+        elif ticker == "TSLA" and right == "P":
+            my_df=pd.read_csv("temp_files/TSLA_PUT.csv")
+            column_means = my_df.mean()
+            my_df = my_df.fillna(column_means)
+        else:
+            raise PreventUpdate
 
 
         return ( dash_table.DataTable(
