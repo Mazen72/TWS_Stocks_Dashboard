@@ -45,7 +45,7 @@ def get_layout(tabs):
                          value='NASDAQ',
                          id='select-stock-exchange',
                             style=dict(color='white', fontWeight='bold', textAlign='center',
-                                       width='8vw', backgroundColor='#0b1a50', border='1px solid #0b1a50')
+                                       width='9vw', backgroundColor='#0b1a50', border='1px solid #0b1a50')
                             )
 
     menu1_text = html.Div(html.H1('Select a Stock Exchange',
@@ -63,7 +63,7 @@ def get_layout(tabs):
         value=None,
         id='select-ticker'
         , style=dict(color='white', fontWeight='bold', textAlign='center',
-                                                width='8vw', backgroundColor='#0b1a50', border='1px solid #0b1a50')
+                                                width='9vw', backgroundColor='#0b1a50', border='1px solid #0b1a50')
     )
 
     # text apears above resolution dropdown
@@ -85,7 +85,7 @@ def get_layout(tabs):
                                                  {'label': 'C', 'value': 'C'},
                          ], value='P',
                          style=dict(color='white', fontWeight='bold', textAlign='center',
-                                    width='8vw', backgroundColor='#0b1a50', border='1px solid #0b1a50')
+                                    width='9vw', backgroundColor='#0b1a50', border='1px solid #0b1a50')
                          )
 
     menu3_text = html.Div(html.H1('Select Option Type',
@@ -100,7 +100,7 @@ def get_layout(tabs):
     menu4 = dcc.Dropdown(
         id='exchanges-out', options=[] ,value=None
         , style=dict(color='white', fontWeight='bold', textAlign='center',
-                                                width='8vw', backgroundColor='#0b1a50', border='1px solid #0b1a50')
+                                                width='9vw', backgroundColor='#0b1a50', border='1px solid #0b1a50')
     )
 
     # text apears above resolution dropdown

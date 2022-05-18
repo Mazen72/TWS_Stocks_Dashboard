@@ -11,7 +11,7 @@ from dash import Dash, Input, Output, dash_table, callback_context, State
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 from datetime import date, datetime, timedelta
-import BuildPortfolio , Portfolio_Stats
+import BuildPortfolio , Portfolio_Stats ,Scenario_Analysis
 #from ScenarioAnalysis import SCENARIOANALYSIS
 from utils_IB import IbConnect ,OptionPortflio,multi_plotter
 from dash.exceptions import PreventUpdate
@@ -168,7 +168,12 @@ dbc.Row([db_logo_img,db_header_text],
 def get_stats_tab_layout(tab3_state,portfolio_created):
     if tab3_state=='pressed':
         dff = pd.DataFrame(portfolio_created)
-        return Portfolio_Stats.get_stats_layout(dff)
+        try:
+            return Portfolio_Stats.get_stats_layout(dff)
+        except:
+            raise PreventUpdate
+
+
     else:
         raise PreventUpdate
 
@@ -223,8 +228,44 @@ def update_tab_content(selected_tab):
         return ( html.Div('{} Content'.format(selected_tab),style=dict(textAlign='center')) ,'')
 
     elif selected_tab=='Scenario Analysis':
-        return ( html.Div('{} Content'.format(selected_tab),style=dict(textAlign='center')),'')
+        tabs = dcc.Tabs(id="tabs", value=selected_tab, vertical=True, children=[
+            dcc.Tab(label='Main Page', value='Main Page', style=tab_style, selected_style=tab_selected_style),
+            dcc.Tab(label='Build Portfolio', value='Build Portfolio', style=tab_style,
+                    selected_style=tab_selected_style),
+            dcc.Tab(label='Portfolio Stats', value='Portfolio Stats', style=tab_style,
+                    selected_style=tab_selected_style),
+            dcc.Tab(label='Intraday Stress Test', value='Intraday Stress Test', style=tab_style,
+                    selected_style=tab_selected_style),
+            dcc.Tab(label='Scenario Analysis', value='Scenario Analysis', style=tab_style,
+                    selected_style=tab_selected_style)
+        ], style=tabs_styles)
+        return ( Scenario_Analysis.get_scenario_layout(tabs),'')
 
+@app.callback(Output('chart1','figure'),Input('options_menu','value'))
+def update_scenarios_chart1(option):
+    if option=='Yield Curve':
+        fig1=Scenario_Analysis.get_yield_curve()
+        fig1.update_layout(
+            # title_text='<b>Payoff<b>',title_x=0.5, xaxis_title='<b>Strike<b>',yaxis_title='<b>Payoff<b>',
+            font=dict(size=14, family='Arial', color='#0b1a50'), hoverlabel=dict(
+                font_size=14, font_family="Rockwell", font_color='white', bgcolor='#0b1a50'), plot_bgcolor='#F5F5F5',
+            paper_bgcolor='#F5F5F5',
+            xaxis=dict(
+
+                tickwidth=2, tickcolor='#80ced6',
+                ticks="outside",
+                tickson="labels",
+                rangeslider_visible=False
+            ), margin=dict(l=0, r=0, t=40, b=0)
+        )
+
+        fig1.update_xaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
+        fig1.update_yaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
+
+        return fig1
+
+    else:
+        raise PreventUpdate
 
 @app.callback(Output('graph2','figure'),
               [Input("tickers_dropdown", "value") ,Input('expirations_dropdown','value')],
