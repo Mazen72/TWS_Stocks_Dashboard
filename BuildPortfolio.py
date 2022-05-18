@@ -21,10 +21,16 @@ exchange_list = set(df_tickers["EXCHANGE"])
 df_temp_table = pd.read_csv("temp_files/TSLA_PUT.csv")
 column_means = df_temp_table.mean()
 df_temp_table = df_temp_table.fillna(column_means)
+cols_to_format2f = ["bid", "ask", "undPrice"]
+cols_to_format3f = ["modelDelta", "modelGamma", "modelIV", "modelPrice", "modelTheta", "modelVega"]
+df_temp_table[cols_to_format2f] = df_temp_table[cols_to_format2f].applymap('{:,.2f}'.format)
+df_temp_table[cols_to_format3f] = df_temp_table[cols_to_format3f].applymap('{:,.3f}'.format)
 try:
     df_temp_table=df_temp_table.drop('Unnamed: 0')
 except:
     pass
+
+
 
 def get_layout(tabs):
 
@@ -150,73 +156,9 @@ def get_layout(tabs):
 
 
 
-    main_table=html.Div( dash_table.DataTable(
-            id='datatable-selection',
-            columns=[
-                {'name': str(i), 'id': str(i), 'deletable': False} for i in df_temp_table.columns
-                # omit the id column
-                if i != 'id'
-            ],
-            data=df_temp_table.to_dict('records'),
-            editable=False,
-            filter_action="native",
-            sort_action="native",
-            sort_mode='multi',
-            row_selectable='multi',
-            selected_rows=[],
-            page_action='native',
-            page_current=0,
-            page_size=10,
+    main_table=html.Div(id='display-option-chain')
 
-        style_cell=dict(textAlign='center', border='1px solid #0b1a50'
-                        , backgroundColor='white', color='black', fontSize='1.6vh', fontWeight=''),
-        style_header=dict(backgroundColor='#0b1a50', color='white',
-                          fontWeight='bold', border='1px solid #d6d6d6', fontSize='1.6vh'),
-        style_table={'overflowX': 'auto', 'width': '100%', 'min-width': '100%','border':'1px solid #0b1a50'}
-        ) ,id='display-option-chain')
 
-    quantity_input_header = html.H1('Please Select a Quantity',
-                                                     style=dict(fontSize='1.4vh', fontWeight='bold', color='black',
-                                                                textAlign='center'))
-    quantity_input = html.Div([ quantity_input_header,
-        dbc.Input(
-        placeholder='select a number ',
-        n_submit=0,
-        type='number',
-        id='quantity_input', autocomplete='off',style=dict(border='1px solid #0b1a50')
-    )], style=dict( width='10vw',display='inline-block'))
-
-    add_to_portifolio = html.Div(dbc.Button(
-        "Add To Portfolio", id="adding-option-button", className="ms-auto", n_clicks=0,size='lg',
-        style=dict(fontSize=text_font_size, backgroundColor='#119DFF')
-    ), style=dict(textAlign='center',display='inline-block', marginTop='1.5%', paddingLeft='2vw'))
-
-    trade_text = html.Div(html.H1('Trade', className='filters-header', id='allowance_text',
-                                      style=dict(fontSize='1.7vh', fontWeight='bold',
-                                                 color='#0b1a50',
-                                                 marginTop='')),
-                              style=dict(display='', marginLeft='', textAlign="center"))
-
-    trade_options = html.Div(
-        [
-            dbc.RadioItems(options=[{"label": "Buy", "value": 'Buy'},
-                                    {"label": "Sell", "value": 'Sell'}, ],
-                           value='Buy',
-                           id="trade_options",
-                           inline=False, label_class_name='filter-label', input_class_name='filter-button',
-                           input_checked_class_name='filter-button-checked',
-                           input_style=dict(border='1px solid #0b1a50'),
-                           input_checked_style=dict(backgroundColor='#0b1a50', border='1px solid #0b1a50')
-                           ),
-        ]
-    )
-
-    trade_options_div = html.Div([trade_text, trade_options],
-                                    style=dict(fontSize='', display='inline-block', marginLeft='2vw', textAlign=""))
-
-    add_to_portifolio_div = html.Div([quantity_input,trade_options_div,add_to_portifolio], className='add-portifolio-div',
-                            style=dict(width='100%',display= 'flex', alignItems= 'center', justifyContent= 'center')
-                            )
 
     portifolio_table=html.Div(id='display_selected_row')
 
@@ -232,7 +174,14 @@ def get_layout(tabs):
                                                   marginTop='')),
                                style=dict(display='inline-block', marginLeft='', textAlign="center", width='100%'))
 
+    portifolio_options= html.Div(html.H1('Portfolio Options',
+                                       style=dict(fontSize='1.9vh', fontWeight='bold', color='#0b1a50',
+                                                  marginTop='')),
+                               style=dict(display='inline-block', marginLeft='', textAlign="center", width='100%'))
+
     portifolio_created=html.Div(id='portfolio_msg')
+
+    options_content=html.Div('', style=dict(height=''),id='portfolio_content')
 
     layout=[ dbc.Col([dbc.Card(dbc.CardBody([
                                                          tabs
@@ -264,9 +213,10 @@ def get_layout(tabs):
             md=dict(size=10, offset=1), sm=dict(size=10, offset=1), xs=dict(size=10, offset=1)),
 
         dbc.Col([dbc.Card(dbc.CardBody(
-            [html.Div([dbc.Spinner([main_table], size="lg", color="primary", type="border", fullscreen=False)
-                       , add_to_portifolio_div
-                       ], style=dict(height=''))])
+            [portifolio_options,dbc.Spinner([options_content],
+                                size = "lg", color = "primary", type = "border", fullscreen = False)
+
+])
             , style=dict(backgroundColor='#F5F5F5')), html.Br()
         ], xl=dict(size=10, offset=1), lg=dict(size=10, offset=1),
             md=dict(size=10, offset=1), sm=dict(size=10, offset=1), xs=dict(size=10, offset=1)),

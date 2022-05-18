@@ -1,2 +1,2 @@
-strike,symbol,right,multiplier,expiration,bid,ask,undPrice,modelDelta,modelGamma,modelIV,modelPrice,modelTheta,modelVega,Quantity,Trade
-655,TSLA,P,100,20220520,15.9395,16.2225,724.7000122,-0.156427914,0.003130521,1.013258341,6.62612144,-2.30959899,0.191699014,312,Buy
+strike,symbol,right,multiplier,expiration,bid,ask,undPrice,modelDelta,modelGamma,modelIV,modelPrice,modelTheta,modelVega,maturity,moneyness,Quantity,Trade
+640,TSLA,P,100,20220520,5.05,5.15,724.7,-0.1168,0.00248,1.04722,4.78062,-1.95209,0.155,2,0.8831240513315854,23,Buy

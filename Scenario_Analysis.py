@@ -26,7 +26,7 @@ def get_scenario_layout(tabs):
 
     drift_input =dbc.Input(
         placeholder='Enter Value',n_submit=0,type='number',
-        id='quantity_input', autocomplete='off',style=dict(border='1px solid #0b1a50',width='8vw',textAlign="center"),
+        id='drift_input', autocomplete='off',style=dict(border='1px solid #0b1a50',width='8vw',textAlign="center"),
 
     )
 
@@ -124,7 +124,7 @@ def get_scenario_layout(tabs):
                                                             'justify-content': 'center'})
 
     index_menu = dcc.Dropdown(
-                         options=[{'label': "S&P500", 'value': "S&P500"} ],
+                         options=[{'label': "S&P500", 'value': "S&P500"},  {'label': "EURO STOCXX500", 'value': "EURO STOCXX500"},  {'label': "MSCI World", 'value': "MSCI World"}],
                          value='S&P500',
                          id='index_menu',
                             style=dict(color='white', fontWeight='bold', textAlign='center',
@@ -329,7 +329,8 @@ def get_scenario_layout(tabs):
 
 def get_yield_curve():
     rates =pd.read_csv(r"temp_files/yield_curve.csv")
-    rates2 = rates[rates['GS1'].notna()]
+    rates.columns = ["DATE", "1M", "6M", "1Y", "3Y", "5Y", "7Y", "10Y", "15Y", "30Y"]
+    rates2 = rates[rates['1Y'].notna()]
     rates2 = rates2.fillna(method='ffill')
     rates2 = rates2.set_index("DATE")
     df = rates2.unstack()
@@ -339,5 +340,9 @@ def get_yield_curve():
     df["DATE"] = df["DATE"].astype(str)
 
     fig1 = px.line(df, x="level_0", y=0, animation_frame="DATE",
-animation_group="level_0", range_y=[0, 5], markers=True)
+    animation_group="level_0", range_y=[0, 5], markers=True)
+    fig1.update_layout(
+        xaxis_title='<b>Maturity<b>',
+        yaxis_title='<b>Rates<b>',
+    )
     return fig1
