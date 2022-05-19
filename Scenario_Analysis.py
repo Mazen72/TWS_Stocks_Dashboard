@@ -10,6 +10,12 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html
 from datetime import date, datetime, timedelta
 import yfinance as yf
+import numpy as np
+from math import exp, log, sqrt
+from scipy.stats import norm
+import torch
+import asyncio
+from utils_IB import OptionPortflio
 
 components_colors={ 'Main Header Background': ['#0b1a50', '#0b1a50'], 'Main Background': ['#e7f0f9', '#e7f0f9'],
                     'Main Header Text': ['white', 'white']}
@@ -104,7 +110,7 @@ def get_scenario_layout(tabs):
                           style=dict(fontSize=text_font_size,
                                      marginLeft='', marginBottom='', display='inline-block'))
 
-    horizon_input_text = html.Div(html.H1('Horizon',
+    horizon_input_text = html.Div(html.H1('Horizon( Months )',
                                              style=dict(fontSize=text_font_size, fontWeight='bold', color='#0b1a50',
                                                         marginTop='')),
                                      style=dict(display='inline-block', marginLeft='', textAlign="center",
@@ -149,9 +155,9 @@ def get_scenario_layout(tabs):
 
 
     options_menu = dcc.Dropdown(
-                         options=[{'label': "Yield Curve", 'value': "Yield Curve"},{'label': "Rf assumption", 'value': "Rf assumption"},
+                         options=[{'label': "Yield Curve", 'value': "Yield Curve"},
                                   {'label': "Index Simulations", 'value': "Index Simulations"}],
-                         value='Yield Curve',
+                         value='Index Simulations',
                          id='options_menu',
                             style=dict(color='white', fontWeight='bold', textAlign='center',
                                        width='9vw', backgroundColor='#0b1a50', border='1px solid #0b1a50')
@@ -180,10 +186,12 @@ def get_scenario_layout(tabs):
     fig1.update_xaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
     fig1.update_yaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
 
+
+
     chart1_div=html.Div([
-            dcc.Graph(id='chart1', config={'displayModeBar': True, 'scrollZoom': True,'displaylogo': False},
-                style=dict(height='34vh',backgroundColor='#F5F5F5') ,figure=fig1
-            ) ] ,id='chart1_div'
+            dcc.Graph(id='mychart1', config={'displayModeBar': True, 'scrollZoom': True,'displaylogo': False},
+                style=dict(height='32vh',backgroundColor='#F5F5F5') ,figure=fig1
+            ) ] ,id='mychart1_div'
         )
 
     middle_table_header = html.Div(html.H1('Portfolio in 6 Months',
@@ -196,40 +204,11 @@ def get_scenario_layout(tabs):
                                                 marginTop='')),
                              style=dict(display='inline-block', marginLeft='', textAlign="center", width='100%'))
 
-    middle_table=html.Div(dash_table.DataTable(
-                id='middle_table',
-                columns=[
-                    {"name": i, "id": i} for i in dummy_df.columns
-                ],
-                data=dummy_df.to_dict("records"),
-                editable=False,
-                row_deletable=False,
-        style_cell=dict(textAlign='center', border='1px solid #0b1a50'
-                        , backgroundColor='white', color='black', fontSize='1.6vh', fontWeight=''),
-        style_header=dict(backgroundColor='#0b1a50', color='white',
-                          fontWeight='bold', border='1px solid #d6d6d6', fontSize='1.6vh'),
-        style_table={'overflowX': 'auto', 'width': '100%', 'min-width': '100%','border':'1px solid #0b1a50'}
-            )
-        ,
+    middle_table=html.Div(
         id = 'middle_table_div')
 
     bottom_table=html.Div(
-        dash_table.DataTable(
-            id='bottom_table',
-            columns=[
-                {"name": i, "id": i} for i in dummy_df.columns
-            ],
-            data=dummy_df.to_dict("records"),
-            editable=False,
-            row_deletable=False,
-            style_cell=dict(textAlign='center', border='1px solid #0b1a50'
-                            , backgroundColor='white', color='black', fontSize='1.6vh', fontWeight=''),
-            style_header=dict(backgroundColor='#0b1a50', color='white',
-                              fontWeight='bold', border='1px solid #d6d6d6', fontSize='1.6vh'),
-            style_table={'overflowX': 'auto', 'width': '100%', 'min-width': '100%', 'border': '1px solid #0b1a50'}
-        )
 
-        ,
         id='bottom_table_div')
 
     fig2=go.Figure()
@@ -251,9 +230,9 @@ def get_scenario_layout(tabs):
     fig2.update_yaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
 
     chart2_div=html.Div([
-            dcc.Graph(id='chart2', config={'displayModeBar': True, 'scrollZoom': True,'displaylogo': False},
+            dcc.Graph(id='mychart2', config={'displayModeBar': True, 'scrollZoom': True,'displaylogo': False},
                 style=dict(height='28vh',backgroundColor='#F5F5F5') ,figure=fig2
-            ) ] ,id='chart2_div'
+            ) ] ,id='mychart2_div'
         )
 
 
@@ -282,7 +261,7 @@ def get_scenario_layout(tabs):
                 md=dict(size=4, offset=0), sm=dict(size=12, offset=0), xs=dict(size=12, offset=0),
                 style=dict(paddingLeft='', paddingRight='', border='')),
 
-        dbc.Col([dbc.Card(dbc.CardBody([options_menu_div,
+        dbc.Col([dbc.Card(dbc.CardBody([options_menu_div,html.Br(),
             dbc.Spinner([chart1_div], size="lg", color="primary", type="border", fullscreen=False)
 
                      ])
@@ -346,3 +325,158 @@ def get_yield_curve():
         yaxis_title='<b>Rates<b>',
     )
     return fig1
+
+'''
+r = Risk free
+
+time_in_months=horizon
+
+lam = prob
+
+intensity=jump
+
+sigma=volat
+
+'''
+def jump_diffusion_process(index, drift, sigma, r,  time_in_months, lam, jump, df_proc,df_betas ,plot = False):
+
+    def gen_paths(S0, drift, sigma, T, n_scenarios, n_timesteps, last_date, lam, jump):
+        dt = float(T) / n_scenarios
+        paths = np.zeros((n_scenarios + 1, n_timesteps), np.float64)
+        list_dates = []
+        list_dates.append(pd.to_datetime(last_date))
+        paths[0] = S0
+
+        end_date = last_date
+        for t in range(1, n_scenarios + 1):
+            end_date = pd.to_datetime(end_date) + timedelta(days=1)
+            list_dates.append(end_date)
+            rand = np.random.standard_normal(n_timesteps)
+            paths[t] = paths[t - 1] * np.exp((drift - 0.5 * sigma ** 2) * dt +
+                                                 sigma * np.sqrt(dt) * rand) + np.random.poisson(lam) * jump
+        df_paths = pd.DataFrame(paths)
+        df_paths["Date"] = list_dates
+
+        return paths, list_dates, df_paths
+
+    index = yf.Ticker(index)  # "^GSPC"
+    index_hist = index.history(period="5Y").reset_index()
+    last_px = index_hist["Close"].values[-1]
+    last_date = index_hist["Date"].values[-1]
+    a, list_dates, df_paths = gen_paths(last_px, drift, sigma, 2, 100, 50, last_date, lam, jump)
+
+    df_paths = df_paths.set_index(["Date"])
+
+    all_data = []
+    return_list = []
+    for col in df_paths.columns:
+        df_1 = index_hist.set_index("Date")["Close"][:-1]
+        series = pd.concat([df_1, df_paths[col]], axis=0)
+        return_path = (df_paths[col][-1] - df_1[-1]) / df_paths[col][-1]
+        all_data.append(series)
+        return_list.append(return_path)
+
+    df_final = pd.concat(all_data, axis=1).reset_index("Date")
+
+        #calculate returns at t+1
+    returns = df_final.set_index("Date").iloc[-1, :] / last_px
+    portfoliovalue = []
+    for i in returns:
+        df, new_opvalue = simulate_baseline_scenario(i, sigma, r, time_in_months,df_proc,df_betas)
+        lista = df[new_opvalue].values
+        portfoliovalue.append(sum([i for i in lista if not isinstance(i, str)]))
+
+    scenarios = pd.DataFrame(zip(returns.values, portfoliovalue), index=returns.index, columns=["index_ret", "portfoliovalue"])
+    scenarios.index.name = "scenario"
+    scenarios = scenarios.reset_index()
+
+    min_ret = scenarios["portfoliovalue"].min()
+
+    max_ret = scenarios["portfoliovalue"].max()
+
+    fig_hist = px.histogram(
+
+        scenarios, x="portfoliovalue"
+     #  , range_x=[min_ret - 50, max_ret - 50]
+
+        ,
+
+        hover_data=scenarios.columns)
+
+    fig = px.line(df_final, x="Date", y=df_final.columns,
+                  hover_data={"Date": "|%B %d, %Y"},
+                  title='custom tick labels with ticklabelmode="period"')
+    fig.update_xaxes(
+     #   dtick="M1",
+     #   tickformat="%b\n%Y",
+        ticklabelmode="period")
+    if plot:
+
+        fig.show()
+        fig_hist.show()
+
+    return df_final,  scenarios,fig_hist,fig
+
+
+def simulate_baseline_scenario(drift, vol, r, time_in_months,df_proc,df_betas):
+    # baseline
+    time_days = time_in_months * 22
+    df_scenario = df_proc.copy()
+    new_exp = "Exp in {} months".format(time_in_months)
+    df_scenario[new_exp] = np.where(df_scenario["maturity"] > time_days, df_scenario["maturity"] - time_days,
+                                    "Expired")
+
+    df_scenario["Time to maturity"] = df_scenario["maturity"] / 252
+
+    df_scenario[new_exp] = df_scenario[new_exp].apply(lambda x: int(float(x)) if x != "Expired" else "Expired")
+    new_S0 = "S0 in {} months".format(time_in_months)
+
+    df_scenario=df_scenario.reset_index()
+    df_betas=df_betas.reset_index()
+    print(df_scenario)
+    print(df_betas)
+    df_scenario = df_scenario.merge(df_betas, left_index=True, right_index=True, how="left")
+    df_scenario = df_scenario.set_index("symbol")
+    df_scenario[new_S0] = df_scenario["undPrice"] * df_scenario["beta"] * (1 + drift)
+
+    new_vol = "Vol in {} months".format(time_in_months)
+    df_scenario[new_vol] = df_scenario["volBeta"] * vol
+
+    # https://www.quantstart.com/articles/European-Vanilla-Call-Put-Option-Pricing-with-Python/
+
+    def d_j(j, S, K, r, v, T):
+        """
+        d_j = \frac{log(\frac{S}{K})+(r+(-1)^{j-1} \frac{1}{2}v^2)T}{v sqrt(T)}
+        """
+        return (log(S / K) + (r + ((-1) ** (j - 1)) * 0.5 * v * v) * T) / (v * (T ** 0.5))
+
+    def vanilla_call_price(S, K, r, v, T):
+        """
+        Price of a European call option struck at K, with
+        spot S, constant rate r, constant vol v (over the
+        life of the option) and time to maturity T
+        """
+        return S * norm.cdf(d_j(1, S, K, r, v, T)) - \
+               K * exp(-r * T) * norm.cdf(d_j(2, S, K, r, v, T))
+
+    def vanilla_put_price(S, K, r, v, T):
+        """
+        Price of a European put option struck at K, with
+        spot S, constant rate r, constant vol v (over the
+        life of the option) and time to maturity T
+        """
+        return -S * norm.cdf(-d_j(1, S, K, r, v, T)) + \
+               K * exp(-r * T) * norm.cdf(-d_j(2, S, K, r, v, T))
+
+    new_opvalue = "Option Value in {} months".format(time_in_months)
+
+    df_scenario2 = df_scenario.copy()
+    df_scenario2[new_opvalue] = "Expired"
+    condition = (df_scenario2[new_exp] != "Expired")
+    df_scenario2.loc[condition, new_opvalue] = df_scenario2[condition].apply(
+        lambda x: vanilla_call_price(x[new_S0], x["strike"],
+                                     r, x[new_vol], x["Time to maturity"]) if x["right"] == "C"
+        else vanilla_put_price(x[new_S0], x["strike"],
+                               r, x[new_vol], x["Time to maturity"]), axis=1)
+    return df_scenario2, new_opvalue
+

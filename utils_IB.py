@@ -288,7 +288,7 @@ class OptionPortflio:
         v = torch.Tensor(Tv)
         dgv_3d = dg.reshape(-1, 1) + v
         a = pd.DataFrame(dgv_3d, index=x, columns=x)
-        print(a)
+
         fig = go.Figure(data=[go.Surface(z=a.values, x=a.index, y=a.columns)])
 
 

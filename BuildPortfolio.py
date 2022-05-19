@@ -223,7 +223,8 @@ def get_layout(tabs):
 
         dbc.Col([dbc.Card(dbc.CardBody([portifolio_header,
                         html.Div([dbc.Spinner([portifolio_table], size="lg", color="primary", type="border", fullscreen=False),
-                    html.Br(),   portifolio_button , html.Br() ,portifolio_created
+                    html.Br(),   portifolio_button , html.Br() ,dbc.Spinner([portifolio_created],
+                                size = "lg", color = "primary", type = "border", fullscreen = False)
 
                        ], style=dict(height=''))])
             , style=dict(backgroundColor='#F5F5F5')), html.Br()

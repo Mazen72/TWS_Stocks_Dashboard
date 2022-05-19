@@ -150,7 +150,8 @@ dbc.Row([db_logo_img,db_header_text],
 
 
                            ],id='content') ,dcc.Store(id="portfolio_created", data=pd.DataFrame().to_dict(), storage_type="memory")
-
+,dcc.Store(id="df_proc2", data=pd.DataFrame().to_dict(), storage_type="memory"),
+dcc.Store(id="df_betas", data=pd.DataFrame().to_dict(), storage_type="memory")
 ,dcc.Store(id="stats_tab", data='no', storage_type="memory")
                      ,html.Br(),html.Br(),html.Br()]
 
@@ -364,10 +365,10 @@ def save_row(row):
                State('portifolio_in_progress','data')],
                prevent_initial_call=True)
 def add_option_to_portfolio(n_clicks,selected_rows,rows,quantity_input,trade_option,current_portifolio_data):
-    if n_clicks==0:
-        raise PreventUpdate
 
-    if quantity_input == None:
+
+
+    if quantity_input == None and n_clicks!=0:
         return ( html.Div([
                 'please enter the quantity in the input box',
             ],style=dict(fontSize='1.7vh',fontWeight='bold',color='red',textAlign='center')) ,dash.no_update,dash.no_update)
@@ -423,25 +424,137 @@ html.Div([
                 'Portfolio Created Successfully',
             ],style=dict(fontSize='1.7vh',fontWeight='bold',color='green',textAlign='center'))
 '''
-@app.callback([Output('portfolio_msg','children'),Output('portfolio_created','data')],
+# df_proc2 , df_betas
+@app.callback([Output('portfolio_msg','children'),Output('portfolio_created','data'),
+               Output('df_proc2','data'),Output('df_betas','data')
+               ],
               [Input('create-portfolio-button','n_clicks'),Input('select-ticker','value')],
               State('portifolio_in_progress','data'),
               prevent_initial_call=True)
 def create_portfolio(clicks,ticker_changed,portfolio_data):
+    if clicks==0:
+        raise PreventUpdate
     ctx = dash.callback_context
     input_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
+    df = pd.DataFrame(portfolio_data)
+    op=OptionPortflio(df)
+    df_proc=op.df_proc
+    df_betas=op.df_betas
+
     if input_id=='select-ticker':
-        return ('',dash.no_update)
+        return ('',dash.no_update,dash.no_update,dash.no_update)
 
     if clicks > 0:
-        df=pd.DataFrame(portfolio_data)
-        df.to_csv('por.csv',index=False)
         return ( html.Div([
                 'Portfolio Created Successfully',
-            ],style=dict(fontSize='1.7vh',fontWeight='bold',color='green',textAlign='center')) , portfolio_data)
+            ],style=dict(fontSize='1.7vh',fontWeight='bold',color='green',textAlign='center')) , portfolio_data,
+                df_proc.to_dict('records'),df_betas.to_dict('records'))
+
     else:
         raise PreventUpdate
+
+    # drift_input volatility_input prob_input risk_input horizon_input options_menu Index Simulations Yield Curve
+    # simulate_button
+    #  chart2 middle_table_div bottom_table_div
+
+#(index, drift, sigma, r,  time_in_months, lam, jump, df_proc,df_betas ,plot = True)
+@app.callback([Output('mychart1','figure'),Output('mychart2','figure'),Output('middle_table_div','children'),
+               Output('bottom_table_div','children')
+               ],
+              Input('simulate_button','n_clicks'),
+              [State('drift_input','value'),State('volatility_input','value'),State('prob_input','value'),
+               State('risk_input','value'),State('horizon_input','value'),State('options_menu','value'),
+               State('intensity_input','value'),
+               State('df_proc2','data'),State('df_betas','data')],
+              prevent_initial_call=True)
+def simulate(n_clicks,drift_input,volatility_input,prob_input,risk_input,horizon_input,options_menu,intensity_input,df_proc,df_betas):
+    df_proc=pd.DataFrame(df_proc)
+    df_betas=pd.DataFrame(df_betas)
+    ret1,ret2,hist,fig=Scenario_Analysis.jump_diffusion_process("^GSPC",drift_input,volatility_input,risk_input,horizon_input
+                                                 ,prob_input,intensity_input,df_proc,df_betas)
+
+    bottom_table_df=ret2
+    fig1=hist
+    fig1.update_layout(
+        #title_text='<b>Payoff<b>',title_x=0.5, xaxis_title='<b>Strike<b>',yaxis_title='<b>Payoff<b>',
+        font=dict(size=14, family='Arial', color='#0b1a50'), hoverlabel=dict(
+            font_size=14, font_family="Rockwell", font_color='white', bgcolor='#0b1a50'), plot_bgcolor='#F5F5F5',
+        paper_bgcolor='#F5F5F5',
+        xaxis=dict(
+
+            tickwidth=2, tickcolor='#80ced6',
+            ticks="outside",
+            tickson="labels",
+            rangeslider_visible=False
+        ) ,margin=dict(l=0, r=0, t=40, b=0)
+    )
+
+    fig1.update_xaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
+    fig1.update_yaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
+
+    fig2=fig
+
+    fig2.update_layout(
+        title_text='<b>Custom tick labels with ticklabelmode="period"<b>',title_x=0.5,
+        font=dict(size=14, family='Arial', color='#0b1a50'), hoverlabel=dict(
+            font_size=14, font_family="Rockwell", font_color='white', bgcolor='#0b1a50'), plot_bgcolor='#F5F5F5',
+        paper_bgcolor='#F5F5F5',
+        xaxis=dict(
+
+            tickwidth=2, tickcolor='#80ced6',
+            ticks="outside",
+            tickson="labels",
+            rangeslider_visible=False
+        ) ,margin=dict(l=0, r=0, t=40, b=0)
+    )
+
+    fig2.update_xaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
+    fig2.update_yaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
+
+    ret3,ret4=Scenario_Analysis.simulate_baseline_scenario(drift_input, volatility_input, risk_input, horizon_input,df_proc,df_betas)
+    middle_table_df=ret3
+
+    middle_table=dash_table.DataTable(
+                id='middle_table',
+                columns=[
+                    {"name": i, "id": i} for i in middle_table_df.columns
+                ],
+                data=middle_table_df.to_dict("records"),
+                editable=False,
+                row_deletable=False, page_size=6,
+        style_cell=dict(textAlign='center', border='1px solid #0b1a50'
+                        , backgroundColor='white', color='black', fontSize='1.6vh', fontWeight=''),
+        style_header=dict(backgroundColor='#0b1a50', color='white',
+                          fontWeight='bold', border='1px solid #d6d6d6', fontSize='1.6vh'),
+        style_table={'overflowX': 'auto', 'width': '100%', 'min-width': '100%','border':'1px solid #0b1a50'}
+            )
+
+
+    bottom_table=dash_table.DataTable(
+            id='bottom_table',
+            columns=[
+                {"name": i, "id": i} for i in bottom_table_df.columns
+            ],
+            data=bottom_table_df.to_dict("records"),
+            editable=False,
+            row_deletable=False,page_size=6,
+            style_cell=dict(textAlign='center', border='1px solid #0b1a50'
+                            , backgroundColor='white', color='black', fontSize='1.6vh', fontWeight=''),
+            style_header=dict(backgroundColor='#0b1a50', color='white',
+                              fontWeight='bold', border='1px solid #d6d6d6', fontSize='1.6vh'),
+            style_table={'overflowX': 'auto', 'width': '100%', 'min-width': '100%', 'border': '1px solid #0b1a50'}
+        )
+
+
+
+    return (fig2,fig1,middle_table,bottom_table)
+
+
+
+
+
+
 
 @app.callback([Output('options_exception','children'),
                Output('portfolio_content','children')],
