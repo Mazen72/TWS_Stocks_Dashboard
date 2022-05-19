@@ -157,7 +157,7 @@ def get_scenario_layout(tabs):
     options_menu = dcc.Dropdown(
                          options=[{'label': "Yield Curve", 'value': "Yield Curve"},
                                   {'label': "Index Simulations", 'value': "Index Simulations"}],
-                         value='Index Simulations',
+                         value=None,
                          id='options_menu',
                             style=dict(color='white', fontWeight='bold', textAlign='center',
                                        width='9vw', backgroundColor='#0b1a50', border='1px solid #0b1a50')
@@ -167,7 +167,7 @@ def get_scenario_layout(tabs):
     options_menu_div=html.Div([options_menu],style={'width': '100%', 'display': 'flex', 'align-items': 'center',
                                                            'justify-content': 'center'})
 
-    fig1=go.Figure()
+    fig1=px.line()
 
     fig1.update_layout(
         #title_text='<b>Payoff<b>',title_x=0.5, xaxis_title='<b>Strike<b>',yaxis_title='<b>Payoff<b>',
@@ -189,7 +189,7 @@ def get_scenario_layout(tabs):
 
 
     chart1_div=html.Div([
-            dcc.Graph(id='mychart1', config={'displayModeBar': True, 'scrollZoom': True,'displaylogo': False},
+            dcc.Graph(id='chart1', config={'displayModeBar': True, 'scrollZoom': True,'displaylogo': False},
                 style=dict(height='32vh',backgroundColor='#F5F5F5') ,figure=fig1
             ) ] ,id='mychart1_div'
         )
@@ -230,7 +230,7 @@ def get_scenario_layout(tabs):
     fig2.update_yaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
 
     chart2_div=html.Div([
-            dcc.Graph(id='mychart2', config={'displayModeBar': True, 'scrollZoom': True,'displaylogo': False},
+            dcc.Graph(id='chart2', config={'displayModeBar': True, 'scrollZoom': True,'displaylogo': False},
                 style=dict(height='28vh',backgroundColor='#F5F5F5') ,figure=fig2
             ) ] ,id='mychart2_div'
         )
@@ -314,7 +314,7 @@ def get_yield_curve():
     rates2 = rates2.set_index("DATE")
     df = rates2.unstack()
     df = df.reset_index()
-    print(df)
+
     #df.columns=['level_0','level_1','DATE']
     df["DATE"] = df["DATE"].astype(str)
 
@@ -433,8 +433,7 @@ def simulate_baseline_scenario(drift, vol, r, time_in_months,df_proc,df_betas):
 
     df_scenario=df_scenario.reset_index()
     df_betas=df_betas.reset_index()
-    print(df_scenario)
-    print(df_betas)
+
     df_scenario = df_scenario.merge(df_betas, left_index=True, right_index=True, how="left")
     df_scenario = df_scenario.set_index("symbol")
     df_scenario[new_S0] = df_scenario["undPrice"] * df_scenario["beta"] * (1 + drift)

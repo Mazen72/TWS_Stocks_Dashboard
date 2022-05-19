@@ -150,8 +150,8 @@ dbc.Row([db_logo_img,db_header_text],
 
 
                            ],id='content') ,dcc.Store(id="portfolio_created", data=pd.DataFrame().to_dict(), storage_type="memory")
-,dcc.Store(id="df_proc2", data=pd.DataFrame().to_dict(), storage_type="memory"),
-dcc.Store(id="df_betas", data=pd.DataFrame().to_dict(), storage_type="memory")
+,dcc.Store(id="df_proc2", data=pd.DataFrame().to_dict(), storage_type="session"),
+dcc.Store(id="df_betas", data=pd.DataFrame().to_dict(), storage_type="session")
 ,dcc.Store(id="stats_tab", data='no', storage_type="memory")
                      ,html.Br(),html.Br(),html.Br()]
 
@@ -232,8 +232,16 @@ def update_tab_content(selected_tab):
         ], style=tabs_styles)
         return ( Scenario_Analysis.get_scenario_layout(tabs),'')
 
-@app.callback(Output('chart1','figure'),Input('options_menu','value'))
-def update_scenarios_chart1(option):
+@app.callback(Output('chart1','figure'),Input('options_menu','value'),
+
+              [State('drift_input', 'value'), State('volatility_input', 'value'), State('prob_input', 'value'),
+               State('risk_input', 'value'), State('horizon_input', 'value'),
+               State('intensity_input', 'value'),
+               State('df_proc2', 'data'), State('df_betas', 'data')]
+
+              )
+def update_scenarios_chart1(option,drift_input,volatility_input,prob_input,risk_input,horizon_input,
+                          intensity_input,df_proc,df_betas):
     if option=='Yield Curve':
         fig1=Scenario_Analysis.get_yield_curve()
         fig1.update_layout(
@@ -254,6 +262,31 @@ def update_scenarios_chart1(option):
         fig1.update_yaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
 
         return fig1
+
+    elif option=='Index Simulations':
+        df_proc = pd.DataFrame(df_proc)
+        df_betas = pd.DataFrame(df_betas)
+        fig2 = Scenario_Analysis.jump_diffusion_process("^GSPC", drift_input, volatility_input, risk_input, horizon_input
+                                                 , prob_input, intensity_input, df_proc, df_betas)[3]
+
+        fig2.update_layout(
+            title_text='<b>Custom tick labels with ticklabelmode="period"<b>', title_x=0.5,
+            font=dict(size=14, family='Arial', color='#0b1a50'), hoverlabel=dict(
+                font_size=14, font_family="Rockwell", font_color='white', bgcolor='#0b1a50'), plot_bgcolor='#F5F5F5',
+            paper_bgcolor='#F5F5F5',
+            xaxis=dict(
+
+                tickwidth=2, tickcolor='#80ced6',
+                ticks="outside",
+                tickson="labels",
+                rangeslider_visible=False
+            ), margin=dict(l=0, r=0, t=40, b=0)
+        )
+
+        fig2.update_xaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
+        fig2.update_yaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
+
+        return fig2
 
     else:
         raise PreventUpdate
@@ -384,9 +417,7 @@ def add_option_to_portfolio(n_clicks,selected_rows,rows,quantity_input,trade_opt
             dff = pd.DataFrame(rows)
 
         dff = dff.iloc[selected_rows]
-        print('2')
-        print(dff)
-        print(type(dff))
+
 
         dff['Quantity']=quantity_input
         dff['Trade']=trade_option
@@ -459,7 +490,7 @@ def create_portfolio(clicks,ticker_changed,portfolio_data):
     #  chart2 middle_table_div bottom_table_div
 
 #(index, drift, sigma, r,  time_in_months, lam, jump, df_proc,df_betas ,plot = True)
-@app.callback([Output('mychart1','figure'),Output('mychart2','figure'),Output('middle_table_div','children'),
+@app.callback([Output('chart2','figure'),Output('middle_table_div','children'),
                Output('bottom_table_div','children')
                ],
               Input('simulate_button','n_clicks'),
@@ -471,12 +502,12 @@ def create_portfolio(clicks,ticker_changed,portfolio_data):
 def simulate(n_clicks,drift_input,volatility_input,prob_input,risk_input,horizon_input,options_menu,intensity_input,df_proc,df_betas):
     df_proc=pd.DataFrame(df_proc)
     df_betas=pd.DataFrame(df_betas)
-    ret1,ret2,hist,fig=Scenario_Analysis.jump_diffusion_process("^GSPC",drift_input,volatility_input,risk_input,horizon_input
+    df,bottom_table_df,hist,fig1=Scenario_Analysis.jump_diffusion_process("^GSPC",drift_input,volatility_input,risk_input,horizon_input
                                                  ,prob_input,intensity_input,df_proc,df_betas)
 
-    bottom_table_df=ret2
-    fig1=hist
-    fig1.update_layout(
+
+
+    hist.update_layout(
         #title_text='<b>Payoff<b>',title_x=0.5, xaxis_title='<b>Strike<b>',yaxis_title='<b>Payoff<b>',
         font=dict(size=14, family='Arial', color='#0b1a50'), hoverlabel=dict(
             font_size=14, font_family="Rockwell", font_color='white', bgcolor='#0b1a50'), plot_bgcolor='#F5F5F5',
@@ -490,27 +521,9 @@ def simulate(n_clicks,drift_input,volatility_input,prob_input,risk_input,horizon
         ) ,margin=dict(l=0, r=0, t=40, b=0)
     )
 
-    fig1.update_xaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
-    fig1.update_yaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
+    hist.update_xaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
+    hist.update_yaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
 
-    fig2=fig
-
-    fig2.update_layout(
-        title_text='<b>Custom tick labels with ticklabelmode="period"<b>',title_x=0.5,
-        font=dict(size=14, family='Arial', color='#0b1a50'), hoverlabel=dict(
-            font_size=14, font_family="Rockwell", font_color='white', bgcolor='#0b1a50'), plot_bgcolor='#F5F5F5',
-        paper_bgcolor='#F5F5F5',
-        xaxis=dict(
-
-            tickwidth=2, tickcolor='#80ced6',
-            ticks="outside",
-            tickson="labels",
-            rangeslider_visible=False
-        ) ,margin=dict(l=0, r=0, t=40, b=0)
-    )
-
-    fig2.update_xaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
-    fig2.update_yaxes(showgrid=False, showline=True, zeroline=False, linecolor='#0b1a50')
 
     ret3,ret4=Scenario_Analysis.simulate_baseline_scenario(drift_input, volatility_input, risk_input, horizon_input,df_proc,df_betas)
     middle_table_df=ret3
@@ -548,7 +561,7 @@ def simulate(n_clicks,drift_input,volatility_input,prob_input,risk_input,horizon
 
 
 
-    return (fig2,fig1,middle_table,bottom_table)
+    return (hist,middle_table,bottom_table)
 
 
 
