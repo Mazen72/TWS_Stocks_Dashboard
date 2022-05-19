@@ -291,11 +291,24 @@ def update_scenarios_chart1(option,drift_input,volatility_input,prob_input,risk_
     else:
         raise PreventUpdate
 
-@app.callback(Output('graph2','figure'),
-              [Input("tickers_dropdown", "value") ,Input('expirations_dropdown','value')],
-              [State('portfolio_created','data'),State('df_proc','data')]
+
+#Input("tickers_dropdown", "value")
+@app.callback(Output('expirations_dropdown','options'),
+              Input('tickers_dropdown','value'),
+              State('created_portfolio_table','data')
               )
-def update_line_chart(stock,expiration,portfolio_created,df_proc):
+def update_expirations(ticker,table_data):
+    top_table_df=pd.DataFrame(table_data)
+    exp_list=top_table_df[top_table_df['symbol']==ticker]['expiration'].to_list()
+    return [{'label': exp, 'value': exp} for exp in exp_list]
+
+
+
+@app.callback(Output('graph2','figure'),
+              Input('expirations_dropdown','value'),
+              [State('portfolio_created','data'),State('df_proc','data'),State("tickers_dropdown", "value") ]
+              )
+def update_line_chart(expiration,portfolio_created,df_proc,stock):
     '''
     portfolio_df=pd.DataFrame(portfolio_created)
     portfolio_df['undPrice']=portfolio_df['Quantity']
