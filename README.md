@@ -6,4 +6,6 @@ analytic web app using python Plotly Dash framework for simulating stocks operat
 
 
 
+
+
 ![alt text](https://github.com/Mazen72/TWS_Stocks_Dashboard/blob/master/images/stocks2.jpg)
